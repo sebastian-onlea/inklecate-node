@@ -5,6 +5,7 @@ const log = console.log;
 const DEBUG = require('./DEBUG');
 const finish = require('./finish');
 const { readFile } = require('fs-extra');
+const { statSync, chmodSync, constants: {S_IRUSR, S_IRGRP, S_IROTH, S_IXUSR, S_IXGRP, S_IXOTH} } = require('fs');
 const getInklecatePath = require('./getInklecatePath');
 
 module.exports = (args) => {
@@ -16,7 +17,11 @@ module.exports = (args) => {
     verbose,
   } = args;
 
-  const proc = spawn(getInklecatePath(), [
+  const inklecatePath = getInklecatePath();
+  
+  setExecutableChmod(inklecatePath);
+
+  const proc = spawn(inklecatePath, [
     countAllVisits ? ArgsEnum.CountAllVisits : null,
     verbose ? ArgsEnum.Verbose : null,
     ArgsEnum.OutputFile,
@@ -103,3 +108,21 @@ module.exports = (args) => {
     });
   });
 };
+
+/**
+ * set filesystem permissions to allow execution (matching read permissions)
+ * @param {string} path 
+ */
+function setExecutableChmod(path) {
+  const { mode } = statSync(path);
+  if (!mode)
+    throw new Error(`executableHandler: inklecate not found at '${path}'`);
+  chmodSync(
+    path,
+    mode |
+      S_IXUSR |
+      (mode & S_IRGRP ? S_IXGRP : 0) |
+      (mode & S_IROTH ? S_IXOTH : 0)
+  );
+}
+
